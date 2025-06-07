@@ -1,5 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
+import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'stickman.dart';
@@ -25,11 +26,23 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
   static const double healthBarWidth = 200.0;
   static const double healthBarPadding = 20.0;
 
+  // World and UI components
+  late GameWorld gameWorld;
+  late GameHud gameHud;
+
   StickmanFightGame({required this.playerCharacter});
 
   @override
   Future<void> onLoad() async {
     super.onLoad();
+    
+    // Create world for game elements
+    gameWorld = GameWorld();
+    add(gameWorld);
+    
+    // Create HUD for UI elements
+    gameHud = GameHud();
+    add(gameHud);
     
     // Create player stickman based on selected character
     player = Stickman(
@@ -49,8 +62,8 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
       characterType: randomCharacter,
     );
 
-    add(player);
-    add(computer);
+    gameWorld.add(player);
+    gameWorld.add(computer);
   }
 
   @override
@@ -200,33 +213,28 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
 
     return super.onKeyEvent(event, keysPressed);
   }
+}
 
+class GameWorld extends PositionComponent {
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
-
     // Draw background
     _drawBackground(canvas);
-    
-    // Draw health bars
-    _drawHealthBars(canvas);
-
-    if (isGameOver) {
-      _drawGameOver(canvas);
-    }
   }
 
   void _drawBackground(Canvas canvas) {
+    final game = parent as StickmanFightGame;
+    
     // Draw sky gradient
     final skyPaint = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [Color(0xFF87CEEB), Color(0xFFE0F7FA)],
-      ).createShader(Rect.fromLTWH(0, 0, size.x, size.y));
+      ).createShader(Rect.fromLTWH(0, 0, game.size.x, game.size.y));
 
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.x, size.y),
+      Rect.fromLTWH(0, 0, game.size.x, game.size.y),
       skyPaint,
     );
 
@@ -234,7 +242,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     final groundPaint = Paint()
       ..color = const Color(0xFF8B4513); // Brown color for ground
     canvas.drawRect(
-      Rect.fromLTWH(0, size.y - 50, size.x, 50),
+      Rect.fromLTWH(0, game.size.y - 50, game.size.x, 50),
       groundPaint,
     );
 
@@ -242,7 +250,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     final grassPaint = Paint()
       ..color = const Color(0xFF228B22); // Forest green color
     canvas.drawRect(
-      Rect.fromLTWH(0, size.y - 50, size.x, 5),
+      Rect.fromLTWH(0, game.size.y - 50, game.size.x, 5),
       grassPaint,
     );
 
@@ -251,12 +259,13 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
   }
 
   void _drawClouds(Canvas canvas) {
+    final game = parent as StickmanFightGame;
     final cloudPaint = Paint()
       ..color = Colors.white.withOpacity(0.8);
 
     // Draw a few clouds
     for (var i = 0; i < 3; i++) {
-      final x = (size.x / 3) * i;
+      final x = (game.size.x / 3) * i;
       final y = 50.0 + (i * 30.0);
       
       // Draw cloud circles
@@ -266,27 +275,41 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
       canvas.drawCircle(Offset(x + 15, y + 10), 15, cloudPaint);
     }
   }
+}
 
-  void _drawHealthBars(Canvas canvas) {
+class GameHud extends PositionComponent {
+  @override
+  void render(Canvas canvas) {
+    final game = parent as StickmanFightGame;
+    
+    // Draw health bars
+    _drawHealthBars(canvas, game);
+
+    if (game.isGameOver) {
+      _drawGameOver(canvas, game);
+    }
+  }
+
+  void _drawHealthBars(Canvas canvas, StickmanFightGame game) {
     // Draw player health bar
     _drawHealthBar(
       canvas,
-      healthBarPadding,
-      healthBarPadding,
-      player.currentHealth,
-      player.maxHealth,
-      player.characterType,
+      StickmanFightGame.healthBarPadding,
+      StickmanFightGame.healthBarPadding,
+      game.player.currentHealth,
+      game.player.maxHealth,
+      game.player.characterType,
       false,
     );
 
     // Draw computer health bar
     _drawHealthBar(
       canvas,
-      size.x - healthBarWidth - healthBarPadding,
-      healthBarPadding,
-      computer.currentHealth,
-      computer.maxHealth,
-      computer.characterType,
+      game.size.x - StickmanFightGame.healthBarWidth - StickmanFightGame.healthBarPadding,
+      StickmanFightGame.healthBarPadding,
+      game.computer.currentHealth,
+      game.computer.maxHealth,
+      game.computer.characterType,
       true,
     );
   }
@@ -306,7 +329,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
       ..style = PaintingStyle.fill;
     
     canvas.drawRect(
-      Rect.fromLTWH(x, y, healthBarWidth, healthBarHeight),
+      Rect.fromLTWH(x, y, StickmanFightGame.healthBarWidth, StickmanFightGame.healthBarHeight),
       bgPaint,
     );
 
@@ -317,7 +340,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
       ..style = PaintingStyle.fill;
     
     canvas.drawRect(
-      Rect.fromLTWH(x, y, healthBarWidth * healthPercentage, healthBarHeight),
+      Rect.fromLTWH(x, y, StickmanFightGame.healthBarWidth * healthPercentage, StickmanFightGame.healthBarHeight),
       healthPaint,
     );
 
@@ -328,7 +351,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
       ..strokeWidth = 2.0;
     
     canvas.drawRect(
-      Rect.fromLTWH(x, y, healthBarWidth, healthBarHeight),
+      Rect.fromLTWH(x, y, StickmanFightGame.healthBarWidth, StickmanFightGame.healthBarHeight),
       borderPaint,
     );
 
@@ -357,21 +380,21 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     return Colors.red;
   }
 
-  void _drawGameOver(Canvas canvas) {
+  void _drawGameOver(Canvas canvas, StickmanFightGame game) {
     // Draw semi-transparent overlay
     final overlayPaint = Paint()
       ..color = Colors.black.withOpacity(0.7)
       ..style = PaintingStyle.fill;
     
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.x, size.y),
+      Rect.fromLTWH(0, 0, game.size.x, game.size.y),
       overlayPaint,
     );
 
     // Draw game over text
     final textPainter = TextPainter(
       text: TextSpan(
-        text: 'Game Over!\n$winner Wins!',
+        text: 'Game Over!\n${game.winner} Wins!',
         style: const TextStyle(
           color: Colors.white,
           fontSize: 48,
@@ -384,8 +407,8 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     textPainter.paint(
       canvas,
       Offset(
-        (size.x - textPainter.width) / 2,
-        (size.y - textPainter.height) / 2,
+        (game.size.x - textPainter.width) / 2,
+        (game.size.y - textPainter.height) / 2,
       ),
     );
   }
