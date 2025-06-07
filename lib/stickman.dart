@@ -2,109 +2,143 @@ import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/geometry.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+//import 'package:flutter/services.dart';
+import 'dart:math' as math;
 
 class Stickman extends PositionComponent {
-  final bool facingLeft;
   final String characterType;
-  late final Color characterColor;
+  bool facingLeft;
+  late double currentHealth;
+  double maxHealth = 100.0;
+  double specialAttackCooldown = 0.0;
+  double specialAttackCooldownDuration = 5.0;
   
   // Movement properties
-  static const double moveSpeed = 200.0;
-  static const double jumpForce = -400.0;
-  static const double gravity = 800.0;
+  double moveSpeed = 400.0;
+  double jumpForce = 400.0;
+  double gravity = 800.0;
+  double verticalVelocity = 0.0;
+  bool isGrounded = true;
   
-  Vector2 velocity = Vector2.zero();
-  bool isJumping = false;
+  // Animation properties
   bool isAttacking = false;
   bool isSpecialAttacking = false;
-  double attackCooldown = 0.0;
-  double specialAttackCooldown = 0.0;
-  
-  // Health system
-  double maxHealth = 100.0;
-  double currentHealth = 100.0;
-  bool isInvulnerable = false;
-  double invulnerabilityTime = 0.0;
-  
-  // Animation states
-  double animationTime = 0.0;
-  bool isMoving = false;
   bool isBlocking = false;
-  bool isHit = false;
-
+  bool isJumping = false;
+  double attackTimer = 0.0;
+  double specialAttackTimer = 0.0;
+  double blockTimer = 0.0;
+  double jumpTimer = 0.0;
+  
+  // Animation constants
+  static const double attackDuration = 0.3;
+  static const double specialAttackDuration = 0.5;
+  static const double blockDuration = 0.2;
+  static const double jumpDuration = 0.4;
+  
+  // Character-specific properties
+  late Color characterColor;
+  late String specialMoveName;
+  late double specialMoveDamage;
+  
   Stickman({
     required Vector2 position,
     this.facingLeft = false,
     required this.characterType,
-  }) : super(position: position) {
-    size = Vector2(50, 120);
-    
-    // Set character color and properties based on type
+  }) {
+    this.position = position;
+    size = Vector2(50, 100);
+    _initializeCharacterProperties();
+    currentHealth = maxHealth;
+  }
+
+  void _initializeCharacterProperties() {
     switch (characterType) {
       case 'Ninja':
         characterColor = Colors.black;
-        maxHealth = 80.0; // Ninja is faster but has less health
+        specialMoveName = 'Shadow Strike';
+        specialMoveDamage = 25.0;
+        moveSpeed = 250.0; // Faster movement
         break;
       case 'Warrior':
         characterColor = Colors.red;
-        maxHealth = 120.0; // Warrior has more health
+        specialMoveName = 'Berserker Rage';
+        specialMoveDamage = 30.0;
+        maxHealth = 120.0; // More health
         break;
       case 'Mage':
         characterColor = Colors.blue;
-        maxHealth = 90.0; // Mage has medium health
+        specialMoveName = 'Arcane Blast';
+        specialMoveDamage = 35.0;
+        specialAttackCooldownDuration = 4.0; // Shorter cooldown
         break;
       case 'Archer':
         characterColor = Colors.green;
-        maxHealth = 85.0; // Archer has medium health
+        specialMoveName = 'Precision Shot';
+        specialMoveDamage = 40.0;
+        moveSpeed = 220.0; // Balanced movement
         break;
       default:
         characterColor = Colors.grey;
+        specialMoveName = 'Special Attack';
+        specialMoveDamage = 20.0;
     }
+  }
+
+  void resetHealth() {
     currentHealth = maxHealth;
   }
 
   void move(double direction) {
-    velocity.x = direction * moveSpeed;
-    isMoving = direction != 0;
+    if (isBlocking) return;
+    
+    position.x += direction * moveSpeed * 0.016;
+    
+    if (direction != 0) {
+      facingLeft = direction < 0;
+    }
   }
 
   void jump() {
-    if (!isJumping) {
-      velocity.y = jumpForce;
-      isJumping = true;
-    }
+    if (!isGrounded || isJumping) return;
+    
+    isJumping = true;
+    isGrounded = false;
+    verticalVelocity = -jumpForce;
+    jumpTimer = 0.0;
   }
 
   void attack() {
-    if (attackCooldown <= 0) {
-      isAttacking = true;
-      attackCooldown = 0.5; // Half second cooldown
-    }
+    if (isAttacking || isSpecialAttacking || isBlocking) return;
+    
+    isAttacking = true;
+    attackTimer = 0.0;
   }
 
   void specialAttack() {
-    if (specialAttackCooldown <= 0) {
-      isSpecialAttacking = true;
-      specialAttackCooldown = 2.0; // 2 second cooldown
-    }
+    if (isAttacking || isSpecialAttacking || isBlocking || specialAttackCooldown > 0) return;
+    
+    isSpecialAttacking = true;
+    specialAttackTimer = 0.0;
+    specialAttackCooldown = specialAttackCooldownDuration;
   }
 
   void block() {
+    if (isAttacking || isSpecialAttacking) return;
+    
     isBlocking = true;
+    blockTimer = 0.0;
   }
 
   void stopBlocking() {
     isBlocking = false;
   }
 
-  void takeDamage(double damage) {
-    if (!isInvulnerable && !isBlocking) {
-      currentHealth = max(0, currentHealth - damage);
-      isHit = true;
-      isInvulnerable = true;
-      invulnerabilityTime = 0.5; // Half second invulnerability
+  void takeDamage(double amount) {
+    if (isBlocking) {
+      amount *= 0.2; // Block reduces damage by 80%
     }
+    currentHealth = math.max(0, currentHealth - amount);
   }
 
   bool isDead() => currentHealth <= 0;
@@ -113,227 +147,202 @@ class Stickman extends PositionComponent {
   void update(double dt) {
     super.update(dt);
     
-    // Apply gravity
-    velocity.y += gravity * dt;
-    
-    // Update position
-    position += velocity * dt;
-    
-    // Ground check
-    if (position.y > 400) { // Assuming ground level
-      position.y = 400;
-      velocity.y = 0;
-      isJumping = false;
-    }
-    
-    // Update animation time
-    animationTime += dt;
-    
     // Update cooldowns
-    if (attackCooldown > 0) {
-      attackCooldown -= dt;
-    }
     if (specialAttackCooldown > 0) {
       specialAttackCooldown -= dt;
     }
-    if (isAttacking && attackCooldown <= 0) {
-      isAttacking = false;
+    
+    // Update attack timers
+    if (isAttacking) {
+      attackTimer += dt;
+      if (attackTimer >= attackDuration) {
+        isAttacking = false;
+      }
     }
-    if (isSpecialAttacking && specialAttackCooldown <= 0) {
-      isSpecialAttacking = false;
+    
+    if (isSpecialAttacking) {
+      specialAttackTimer += dt;
+      if (specialAttackTimer >= specialAttackDuration) {
+        isSpecialAttacking = false;
+      }
     }
-
-    // Update invulnerability
-    if (isInvulnerable) {
-      invulnerabilityTime -= dt;
-      if (invulnerabilityTime <= 0) {
-        isInvulnerable = false;
-        isHit = false;
+    
+    if (isBlocking) {
+      blockTimer += dt;
+      if (blockTimer >= blockDuration) {
+        isBlocking = false;
+      }
+    }
+    
+    // Update jump
+    if (isJumping) {
+      jumpTimer += dt;
+      if (jumpTimer >= jumpDuration) {
+        isJumping = false;
+      }
+    }
+    
+    // Apply gravity
+    if (!isGrounded) {
+      verticalVelocity += gravity * dt;
+      position.y += verticalVelocity * dt;
+      
+      // Check for ground collision
+      if (position.y >= 500) { // Ground level
+        position.y = 500;
+        verticalVelocity = 0;
+        isGrounded = true;
       }
     }
   }
 
   @override
   void render(Canvas canvas) {
-    // Draw health bar
-    final healthBarWidth = 50.0;
-    final healthBarHeight = 5.0;
-    final healthPercentage = currentHealth / maxHealth;
+    // Draw character body
+    final bodyPaint = Paint()
+      ..color = characterColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
     
-    // Background
-    canvas.drawRect(
-      Rect.fromLTWH(0, -20, healthBarWidth, healthBarHeight),
-      Paint()..color = Colors.grey,
-    );
+    // Draw character based on state
+    if (isAttacking) {
+      _drawAttackingStickman(canvas, bodyPaint);
+    } else if (isSpecialAttacking) {
+      _drawSpecialAttackingStickman(canvas, bodyPaint);
+    } else if (isBlocking) {
+      _drawBlockingStickman(canvas, bodyPaint);
+    } else if (isJumping) {
+      _drawJumpingStickman(canvas, bodyPaint);
+    } else {
+      _drawNormalStickman(canvas, bodyPaint);
+    }
     
-    // Health
-    canvas.drawRect(
-      Rect.fromLTWH(0, -20, healthBarWidth * healthPercentage, healthBarHeight),
-      Paint()..color = Colors.green,
-    );
+    // Draw special attack cooldown indicator
+    if (specialAttackCooldown > 0) {
+      _drawCooldownIndicator(canvas);
+    }
+  }
 
-    final paint = Paint()
-      ..color = isInvulnerable ? characterColor.withOpacity(0.5) : characterColor
+  void _drawNormalStickman(Canvas canvas, Paint paint) {
+    // Head
+    canvas.drawCircle(Offset(0, -40), 10, paint);
+    
+    // Body
+    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
+    
+    // Arms
+    canvas.drawLine(Offset(0, -20), Offset(-15, 0), paint);
+    canvas.drawLine(Offset(0, -20), Offset(15, 0), paint);
+    
+    // Legs
+    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
+    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
+  }
+
+  void _drawAttackingStickman(Canvas canvas, Paint paint) {
+    // Head
+    canvas.drawCircle(Offset(0, -40), 10, paint);
+    
+    // Body
+    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
+    
+    // Arms (attacking pose)
+    canvas.drawLine(Offset(0, -20), Offset(-15, 0), paint);
+    canvas.drawLine(Offset(0, -20), Offset(30, -10), paint);
+    
+    // Legs
+    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
+    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
+    
+    // Attack effect
+    final effectPaint = Paint()
+      ..color = Colors.yellow.withOpacity(0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
-
-    // Calculate animation offsets
-    double armSwing = isMoving ? sin(animationTime * 10) * 20 : 0;
-    double legSwing = isMoving ? sin(animationTime * 10) * 15 : 0;
-    double attackOffset = isAttacking ? 30 : 0;
-    double specialAttackOffset = isSpecialAttacking ? 50 : 0;
-    double blockOffset = isBlocking ? 45 : 0;
-    double hitOffset = isHit ? sin(animationTime * 30) * 5 : 0;
-
-    // Draw head
-    canvas.drawCircle(
-      Offset(size.x / 2, 20 + hitOffset),
-      15,
-      paint,
+    canvas.drawArc(
+      Rect.fromCenter(center: Offset(20, -15), width: 40, height: 40),
+      0,
+      math.pi,
+      false,
+      effectPaint,
     );
-
-    // Draw body
-    canvas.drawLine(
-      Offset(size.x / 2, 35 + hitOffset),
-      Offset(size.x / 2, 80 + hitOffset),
-      paint,
-    );
-
-    // Draw arms with animation
-    if (isSpecialAttacking) {
-      // Special attack animation
-      _drawSpecialAttack(canvas, paint, specialAttackOffset);
-    } else if (isAttacking) {
-      // Normal attack animation
-      canvas.drawLine(
-        Offset(size.x / 2, 45 + hitOffset),
-        Offset(facingLeft ? -attackOffset : size.x + attackOffset, 60 + hitOffset),
-        paint,
-      );
-    } else if (isBlocking) {
-      // Block animation
-      canvas.drawLine(
-        Offset(size.x / 2, 45 + hitOffset),
-        Offset(facingLeft ? -blockOffset : size.x + blockOffset, 30 + hitOffset),
-        paint,
-      );
-    } else {
-      // Normal arm movement
-      canvas.drawLine(
-        Offset(size.x / 2, 45 + hitOffset),
-        Offset(facingLeft ? -armSwing : size.x + armSwing, 60 + hitOffset),
-        paint,
-      );
-    }
-    canvas.drawLine(
-      Offset(size.x / 2, 45 + hitOffset),
-      Offset(facingLeft ? size.x + armSwing : -armSwing, 60 + hitOffset),
-      paint,
-    );
-
-    // Draw legs with animation
-    canvas.drawLine(
-      Offset(size.x / 2, 80 + hitOffset),
-      Offset(facingLeft ? -legSwing : size.x / 2, 120 + hitOffset),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.x / 2, 80 + hitOffset),
-      Offset(facingLeft ? size.x / 2 : legSwing, 120 + hitOffset),
-      paint,
-    );
-
-    // Draw character-specific effects
-    if (isAttacking || isSpecialAttacking) {
-      _drawAttackEffects(canvas, paint, attackOffset, specialAttackOffset);
-    }
   }
 
-  void _drawSpecialAttack(Canvas canvas, Paint paint, double offset) {
-    switch (characterType) {
-      case 'Ninja':
-        // Shadow clone technique
-        for (var i = 0; i < 3; i++) {
-          canvas.drawCircle(
-            Offset(facingLeft ? -offset - i * 20 : size.x + offset + i * 20, 60),
-            10,
-            paint..style = PaintingStyle.stroke,
-          );
-        }
-        break;
-      case 'Warrior':
-        // Whirlwind attack
-        for (var i = 0; i < 8; i++) {
-          final angle = i * pi / 4;
-          canvas.drawLine(
-            Offset(size.x / 2, 45),
-            Offset(
-              size.x / 2 + cos(angle) * offset,
-              45 + sin(angle) * offset,
-            ),
-            paint,
-          );
-        }
-        break;
-      case 'Mage':
-        // Fireball
-        canvas.drawCircle(
-          Offset(facingLeft ? -offset : size.x + offset, 60),
-          20,
-          paint..style = PaintingStyle.fill,
-        );
-        break;
-      case 'Archer':
-        // Multi-shot
-        for (var i = -1; i <= 1; i++) {
-          canvas.drawLine(
-            Offset(facingLeft ? -offset : size.x + offset, 60),
-            Offset(
-              facingLeft ? -offset - 50 : size.x + offset + 50,
-              60 + i * 20,
-            ),
-            paint,
-          );
-        }
-        break;
-    }
+  void _drawSpecialAttackingStickman(Canvas canvas, Paint paint) {
+    // Head
+    canvas.drawCircle(Offset(0, -40), 10, paint);
+    
+    // Body
+    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
+    
+    // Arms (special attack pose)
+    canvas.drawLine(Offset(0, -20), Offset(-20, -10), paint);
+    canvas.drawLine(Offset(0, -20), Offset(40, -20), paint);
+    
+    // Legs
+    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
+    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
+    
+    // Special attack effect
+    final effectPaint = Paint()
+      ..color = characterColor.withOpacity(0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+    canvas.drawCircle(Offset(30, -20), 20, effectPaint);
   }
 
-  void _drawAttackEffects(Canvas canvas, Paint paint, double attackOffset, double specialOffset) {
-    final offset = isSpecialAttacking ? specialOffset : attackOffset;
-    switch (characterType) {
-      case 'Ninja':
-        // Draw ninja star effect
-        canvas.drawCircle(
-          Offset(facingLeft ? -offset : size.x + offset, 60),
-          5,
-          paint,
-        );
-        break;
-      case 'Warrior':
-        // Draw sword effect
-        canvas.drawLine(
-          Offset(facingLeft ? -offset : size.x + offset, 60),
-          Offset(facingLeft ? -offset - 20 : size.x + offset + 20, 50),
-          paint,
-        );
-        break;
-      case 'Mage':
-        // Draw magic effect
-        canvas.drawCircle(
-          Offset(facingLeft ? -offset : size.x + offset, 60),
-          10,
-          paint..style = PaintingStyle.fill,
-        );
-        break;
-      case 'Archer':
-        // Draw arrow effect
-        canvas.drawLine(
-          Offset(facingLeft ? -offset : size.x + offset, 60),
-          Offset(facingLeft ? -offset - 30 : size.x + offset + 30, 60),
-          paint,
-        );
-        break;
-    }
+  void _drawBlockingStickman(Canvas canvas, Paint paint) {
+    // Head
+    canvas.drawCircle(Offset(0, -40), 10, paint);
+    
+    // Body
+    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
+    
+    // Arms (blocking pose)
+    canvas.drawLine(Offset(0, -20), Offset(-20, 0), paint);
+    canvas.drawLine(Offset(0, -20), Offset(20, 0), paint);
+    
+    // Legs
+    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
+    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
+    
+    // Block effect
+    final effectPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(0, 0), 30, effectPaint);
+  }
+
+  void _drawJumpingStickman(Canvas canvas, Paint paint) {
+    // Head
+    canvas.drawCircle(Offset(0, -40), 10, paint);
+    
+    // Body
+    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
+    
+    // Arms (jumping pose)
+    canvas.drawLine(Offset(0, -20), Offset(-20, -30), paint);
+    canvas.drawLine(Offset(0, -20), Offset(20, -30), paint);
+    
+    // Legs
+    canvas.drawLine(Offset(0, 20), Offset(-15, 30), paint);
+    canvas.drawLine(Offset(0, 20), Offset(15, 30), paint);
+  }
+
+  void _drawCooldownIndicator(Canvas canvas) {
+    final cooldownPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.5)
+      ..style = PaintingStyle.fill;
+    
+    final progress = specialAttackCooldown / specialAttackCooldownDuration;
+    final angle = 2 * math.pi * progress;
+    
+    canvas.drawArc(
+      Rect.fromCenter(center: Offset(0, -50), width: 20, height: 20),
+      -math.pi / 2,
+      angle,
+      true,
+      cooldownPaint,
+    );
   }
 }

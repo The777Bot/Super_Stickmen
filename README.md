@@ -12,6 +12,13 @@ A new Flutter project.
 
 ## Getting Started
 
+Make sure you have Flutter installed.
+
+```bash
+flutter pub get
+flutter run
+```
+
 This project is a starting point for a Flutter application.
 
 A few resources to get you started if this is your first Flutter project:

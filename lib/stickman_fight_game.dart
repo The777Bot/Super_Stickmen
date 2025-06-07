@@ -3,6 +3,7 @@ import 'package:flame/input.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 import 'stickman.dart';
 
 class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetection {
@@ -12,7 +13,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
   
   // AI properties
   double aiDecisionTimer = 0.0;
-  double aiDecisionInterval = 0.5; // Make a decision every half second
+  double aiDecisionInterval = 0.3; // Make decisions more frequently
   bool isPlayerAttacking = false;
   bool isPlayerBlocking = false;
   bool isPlayerSpecialAttacking = false;
@@ -20,6 +21,10 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
   // Game state
   bool isGameOver = false;
   String? winner;
+  int playerScore = 0;
+  int computerScore = 0;
+  double roundTimer = 60.0; // 60 seconds per round
+  bool isRoundOver = false;
 
   // UI constants
   static const double healthBarHeight = 30.0;
@@ -46,7 +51,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     
     // Create player stickman based on selected character
     player = Stickman(
-      position: Vector2(100, size.y - 150),
+      position: Vector2(100, size.y - 90),
       characterType: playerCharacter,
     );
 
@@ -57,7 +62,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     );
     
     computer = Stickman(
-      position: Vector2(size.x - 150, size.y - 150),
+      position: Vector2(size.x - 150, size.y - 90),
       facingLeft: true,
       characterType: randomCharacter,
     );
@@ -75,13 +80,24 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     
     if (isGameOver) return;
 
+    // Update round timer
+    if (!isRoundOver) {
+      roundTimer -= dt;
+      if (roundTimer <= 0) {
+        isRoundOver = true;
+        _handleRoundEnd();
+      }
+    }
+
     // Check for game over
     if (player.isDead()) {
       isGameOver = true;
       winner = 'Computer';
+      computerScore++;
     } else if (computer.isDead()) {
       isGameOver = true;
       winner = 'Player';
+      playerScore++;
     }
     
     // Keep characters in bounds
@@ -99,12 +115,26 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     }
   }
 
+  void _handleRoundEnd() {
+    if (player.currentHealth > computer.currentHealth) {
+      playerScore++;
+    } else if (computer.currentHealth > player.currentHealth) {
+      computerScore++;
+    }
+    // Reset for next round
+    player.resetHealth();
+    computer.resetHealth();
+    roundTimer = 60.0;
+    isRoundOver = false;
+  }
+
   void _keepInBounds(Stickman stickman) {
-    // Keep within screen bounds
-    if (stickman.position.x < 0) {
-      stickman.position.x = 0;
-    } else if (stickman.position.x > size.x - stickman.size.x) {
-      stickman.position.x = size.x - stickman.size.x;
+    // Keep within screen bounds with some padding
+    final padding = 20.0;
+    if (stickman.position.x < padding) {
+      stickman.position.x = padding;
+    } else if (stickman.position.x > size.x - stickman.size.x - padding) {
+      stickman.position.x = size.x - stickman.size.x - padding;
     }
   }
 
@@ -113,8 +143,11 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     if (player.isAttacking || player.isSpecialAttacking) {
       final distance = (player.position - computer.position).length;
       if (distance < 100) {
-        final damage = player.isSpecialAttacking ? 30.0 : 10.0;
-        computer.takeDamage(damage);
+        final damage = player.isSpecialAttacking ? 20.0 : 5.0; // Reduced damage
+        if (!computer.isBlocking) {
+          computer.takeDamage(damage);
+          _createHitEffect(computer.position);
+        }
       }
     }
 
@@ -122,30 +155,53 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     if (computer.isAttacking || computer.isSpecialAttacking) {
       final distance = (player.position - computer.position).length;
       if (distance < 100) {
-        final damage = computer.isSpecialAttacking ? 30.0 : 10.0;
-        player.takeDamage(damage);
+        final damage = computer.isSpecialAttacking ? 20.0 : 5.0; // Reduced damage
+        if (!player.isBlocking) {
+          player.takeDamage(damage);
+          _createHitEffect(player.position);
+        }
       }
     }
   }
 
+  void _createHitEffect(Vector2 position) {
+    final effect = HitEffect(position: position);
+    gameWorld.add(effect);
+  }
+
   void updateAI() {
-    if (isGameOver) return;
+    if (isGameOver || isRoundOver) return;
 
     // Calculate distance to player
     final distance = (player.position - computer.position).length;
+    final random = math.Random();
     
-    // Basic AI behavior
-    if (distance < 100) {
+    // Add some randomness to AI decisions
+    if (random.nextDouble() < 0.1) {
+      // 10% chance to do nothing
+      return;
+    }
+    
+    // Basic AI behavior with improved positioning
+    if (distance < 80) {
       // Close range behavior
       if (isPlayerAttacking) {
-        // If player is attacking, try to block
-        computer.block();
+        // If player is attacking, try to block or dodge
+        if (random.nextDouble() < 0.7) {
+          computer.block();
+        } else {
+          computer.move(player.facingLeft ? 1 : -1);
+        }
       } else if (isPlayerBlocking) {
-        // If player is blocking, try to get behind
-        computer.move(player.facingLeft ? 1 : -1);
+        // If player is blocking, try to get behind or move away
+        if (random.nextDouble() < 0.5) {
+          computer.move(player.facingLeft ? 1 : -1);
+        } else {
+          computer.move(-1);
+        }
       } else {
         // If player is vulnerable, attack
-        if (computer.specialAttackCooldown <= 0) {
+        if (computer.specialAttackCooldown <= 0 && random.nextDouble() < 0.3) {
           computer.specialAttack();
         } else {
           computer.attack();
@@ -154,18 +210,30 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     } else if (distance < 200) {
       // Medium range behavior
       if (isPlayerSpecialAttacking) {
-        // If player is using special attack, try to block
-        computer.block();
+        // If player is using special attack, try to block or dodge
+        if (random.nextDouble() < 0.6) {
+          computer.block();
+        } else {
+          computer.move(-1);
+        }
       } else if (isPlayerBlocking) {
         // If player is blocking, move away
         computer.move(-1);
       } else {
-        // If player is vulnerable, move closer
-        computer.move(1);
+        // If player is vulnerable, move closer or attack
+        if (random.nextDouble() < 0.7) {
+          computer.move(1);
+        } else if (computer.specialAttackCooldown <= 0) {
+          computer.specialAttack();
+        }
       }
     } else {
       // Long range behavior
-      computer.move(1); // Move towards player
+      if (random.nextDouble() < 0.8) {
+        computer.move(1); // Move towards player
+      } else if (computer.specialAttackCooldown <= 0) {
+        computer.specialAttack(); // Try special attack from range
+      }
     }
   }
 
@@ -174,7 +242,15 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
-    if (isGameOver) return KeyEventResult.handled;
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        // Exit the game
+        SystemNavigator.pop();
+        return KeyEventResult.handled;
+      }
+    }
+
+    if (isGameOver || isRoundOver) return KeyEventResult.handled;
 
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.keyA ||
@@ -212,6 +288,42 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     }
 
     return super.onKeyEvent(event, keysPressed);
+  }
+}
+
+class HitEffect extends PositionComponent {
+  static const double duration = 0.3;
+  double _timer = 0.0;
+  final Paint _paint = Paint()
+    ..color = Colors.yellow
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.0;
+
+  HitEffect({required Vector2 position}) {
+    this.position = position;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _timer += dt;
+    if (_timer >= duration) {
+      removeFromParent();
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final progress = _timer / duration;
+    final radius = 20.0 * (1 - progress);
+    final opacity = 1.0 - progress;
+    
+    _paint.color = Colors.yellow.withOpacity(opacity);
+    canvas.drawCircle(
+      Offset(0, 0),
+      radius,
+      _paint,
+    );
   }
 }
 
