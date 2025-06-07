@@ -23,11 +23,6 @@ This project is a starting point for a Flutter application.
 
 A few resources to get you started if this is your first Flutter project:
 
-#ScreenShots
-1.
-![screenshot Stickman](assets/images/Screenshot(18).png)
-2.
-![Mage Stickman](assets/images/mage_stickman.png)
 
 - [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
 - [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
@@ -35,3 +30,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+#ScreenShots
+1.
+![screenshot Stickman](assets/images/Screenshot_(18).png)
