@@ -29,12 +29,15 @@ class Stickman extends PositionComponent {
   double specialAttackTimer = 0.0;
   double blockTimer = 0.0;
   double jumpTimer = 0.0;
+  double walkTimer = 0.0;
+  bool isWalking = false;
   
   // Animation constants
   static const double attackDuration = 0.3;
   static const double specialAttackDuration = 0.5;
   static const double blockDuration = 0.2;
   static const double jumpDuration = 0.4;
+  static const double walkCycleDuration = 0.4; // Duration of one complete walk cycle
   
   // Character-specific properties
   late Color characterColor;
@@ -93,6 +96,7 @@ class Stickman extends PositionComponent {
     if (isBlocking) return;
     
     position.x += direction * moveSpeed * 0.016;
+    isWalking = direction != 0;
     
     if (direction != 0) {
       facingLeft = direction < 0;
@@ -181,6 +185,16 @@ class Stickman extends PositionComponent {
         isJumping = false;
       }
     }
+
+    // Update walk animation
+    if (isWalking) {
+      walkTimer += dt;
+      if (walkTimer >= walkCycleDuration) {
+        walkTimer = 0.0;
+      }
+    } else {
+      walkTimer = 0.0;
+    }
     
     // Apply gravity
     if (!isGrounded) {
@@ -198,151 +212,239 @@ class Stickman extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
-    // Draw character body
-    final bodyPaint = Paint()
+    final paint = Paint()
       ..color = characterColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
+      ..strokeWidth = 6.0;
+
+    final headPaint = Paint()
+      ..color = characterColor
+      ..style = PaintingStyle.fill;
+
+    // Draw head with a slight glow effect
+    final glowPaint = Paint()
+      ..color = characterColor.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      Offset(0, -30),
+      18,
+      glowPaint,
+    );
+    canvas.drawCircle(
+      Offset(0, -30),
+      15,
+      headPaint,
+    );
+
+    // Draw body
+    canvas.drawLine(
+      const Offset(0, -15),
+      const Offset(0, 20),
+      paint,
+    );
+
+    // Draw arms with improved angles
+    final armAngle = isAttacking ? 45.0 : 0.0;
+    final armLength = 25.0;
     
-    // Draw character based on state
-    if (isAttacking) {
-      _drawAttackingStickman(canvas, bodyPaint);
-    } else if (isSpecialAttacking) {
-      _drawSpecialAttackingStickman(canvas, bodyPaint);
-    } else if (isBlocking) {
-      _drawBlockingStickman(canvas, bodyPaint);
+    // Left arm
+    canvas.drawLine(
+      const Offset(0, 0),
+      Offset(
+        -armLength * math.cos(math.pi / 4 + armAngle * math.pi / 180),
+        armLength * math.sin(math.pi / 4 + armAngle * math.pi / 180),
+      ),
+      paint,
+    );
+
+    // Right arm
+    canvas.drawLine(
+      const Offset(0, 0),
+      Offset(
+        armLength * math.cos(math.pi / 4 - armAngle * math.pi / 180),
+        armLength * math.sin(math.pi / 4 - armAngle * math.pi / 180),
+      ),
+      paint,
+    );
+
+    // Draw legs with walking animation
+    final legLength = 30.0;
+    double leftLegAngle = 0.0;
+    double rightLegAngle = 0.0;
+
+    if (isWalking) {
+      // Calculate leg angles based on walk cycle
+      final cycleProgress = walkTimer / walkCycleDuration;
+      final angleOffset = math.sin(cycleProgress * math.pi * 2) * 30.0; // 30 degrees max swing
+      leftLegAngle = angleOffset;
+      rightLegAngle = -angleOffset;
     } else if (isJumping) {
-      _drawJumpingStickman(canvas, bodyPaint);
-    } else {
-      _drawNormalStickman(canvas, bodyPaint);
+      leftLegAngle = -30.0;
+      rightLegAngle = -30.0;
     }
-    
-    // Draw special attack cooldown indicator
-    if (specialAttackCooldown > 0) {
-      _drawCooldownIndicator(canvas);
+
+    // Left leg
+    canvas.drawLine(
+      const Offset(0, 20),
+      Offset(
+        -legLength * math.cos(math.pi / 4 + leftLegAngle * math.pi / 180),
+        20 + legLength * math.sin(math.pi / 4 + leftLegAngle * math.pi / 180),
+      ),
+      paint,
+    );
+
+    // Right leg
+    canvas.drawLine(
+      const Offset(0, 20),
+      Offset(
+        legLength * math.cos(math.pi / 4 - rightLegAngle * math.pi / 180),
+        20 + legLength * math.sin(math.pi / 4 - rightLegAngle * math.pi / 180),
+      ),
+      paint,
+    );
+
+    // Draw special effects based on character type
+    _drawSpecialEffects(canvas, paint);
+  }
+
+  void _drawSpecialEffects(Canvas canvas, Paint basePaint) {
+    final effectPaint = Paint()
+      ..color = characterColor.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0; // Increased from 3.0 to 4.0 for thicker effect lines
+
+    switch (characterType) {
+      case 'Ninja':
+        // Draw ninja mask with thicker lines
+        canvas.drawLine(
+          const Offset(-12, -25),
+          const Offset(12, -25),
+          basePaint,
+        );
+        // Draw sword with glow effect
+        if (isAttacking) {
+          final swordGlowPaint = Paint()
+            ..color = characterColor.withOpacity(0.3)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 8.0;
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(45, -25),
+            swordGlowPaint,
+          );
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(40, -20),
+            basePaint,
+          );
+        }
+        break;
+      case 'Warrior':
+        // Draw shield with improved effect
+        if (isBlocking) {
+          final shieldGlowPaint = Paint()
+            ..color = characterColor.withOpacity(0.3)
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(
+            const Offset(-20, 0),
+            18,
+            shieldGlowPaint,
+          );
+          canvas.drawCircle(
+            const Offset(-20, 0),
+            15,
+            effectPaint,
+          );
+        }
+        // Draw sword with glow effect
+        if (isAttacking) {
+          final swordGlowPaint = Paint()
+            ..color = characterColor.withOpacity(0.3)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 8.0;
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(45, -25),
+            swordGlowPaint,
+          );
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(40, -20),
+            basePaint,
+          );
+        }
+        break;
+      case 'Mage':
+        // Draw magic staff with improved effects
+        if (isAttacking) {
+          final staffGlowPaint = Paint()
+            ..color = characterColor.withOpacity(0.3)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 8.0;
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(45, -25),
+            staffGlowPaint,
+          );
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(40, -20),
+            basePaint,
+          );
+          // Draw enhanced magic effect
+          final magicGlowPaint = Paint()
+            ..color = characterColor.withOpacity(0.3)
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(
+            const Offset(40, -20),
+            15,
+            magicGlowPaint,
+          );
+          canvas.drawCircle(
+            const Offset(40, -20),
+            10,
+            effectPaint,
+          );
+        }
+        break;
+      case 'Archer':
+        // Draw bow with improved effects
+        if (isAttacking) {
+          final bowGlowPaint = Paint()
+            ..color = characterColor.withOpacity(0.3)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 6.0;
+          canvas.drawArc(
+            const Rect.fromLTWH(20, -25, 25, 25),
+            0,
+            math.pi,
+            false,
+            bowGlowPaint,
+          );
+          canvas.drawArc(
+            const Rect.fromLTWH(20, -20, 20, 20),
+            0,
+            math.pi,
+            false,
+            basePaint,
+          );
+          // Draw arrow with glow
+          final arrowGlowPaint = Paint()
+            ..color = characterColor.withOpacity(0.3)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 8.0;
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(45, -25),
+            arrowGlowPaint,
+          );
+          canvas.drawLine(
+            const Offset(30, -10),
+            const Offset(40, -20),
+            basePaint,
+          );
+        }
+        break;
     }
-  }
-
-  void _drawNormalStickman(Canvas canvas, Paint paint) {
-    // Head
-    canvas.drawCircle(Offset(0, -40), 10, paint);
-    
-    // Body
-    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
-    
-    // Arms
-    canvas.drawLine(Offset(0, -20), Offset(-15, 0), paint);
-    canvas.drawLine(Offset(0, -20), Offset(15, 0), paint);
-    
-    // Legs
-    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
-    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
-  }
-
-  void _drawAttackingStickman(Canvas canvas, Paint paint) {
-    // Head
-    canvas.drawCircle(Offset(0, -40), 10, paint);
-    
-    // Body
-    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
-    
-    // Arms (attacking pose)
-    canvas.drawLine(Offset(0, -20), Offset(-15, 0), paint);
-    canvas.drawLine(Offset(0, -20), Offset(30, -10), paint);
-    
-    // Legs
-    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
-    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
-    
-    // Attack effect
-    final effectPaint = Paint()
-      ..color = Colors.yellow.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    canvas.drawArc(
-      Rect.fromCenter(center: Offset(20, -15), width: 40, height: 40),
-      0,
-      math.pi,
-      false,
-      effectPaint,
-    );
-  }
-
-  void _drawSpecialAttackingStickman(Canvas canvas, Paint paint) {
-    // Head
-    canvas.drawCircle(Offset(0, -40), 10, paint);
-    
-    // Body
-    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
-    
-    // Arms (special attack pose)
-    canvas.drawLine(Offset(0, -20), Offset(-20, -10), paint);
-    canvas.drawLine(Offset(0, -20), Offset(40, -20), paint);
-    
-    // Legs
-    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
-    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
-    
-    // Special attack effect
-    final effectPaint = Paint()
-      ..color = characterColor.withOpacity(0.7)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
-    canvas.drawCircle(Offset(30, -20), 20, effectPaint);
-  }
-
-  void _drawBlockingStickman(Canvas canvas, Paint paint) {
-    // Head
-    canvas.drawCircle(Offset(0, -40), 10, paint);
-    
-    // Body
-    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
-    
-    // Arms (blocking pose)
-    canvas.drawLine(Offset(0, -20), Offset(-20, 0), paint);
-    canvas.drawLine(Offset(0, -20), Offset(20, 0), paint);
-    
-    // Legs
-    canvas.drawLine(Offset(0, 20), Offset(-15, 40), paint);
-    canvas.drawLine(Offset(0, 20), Offset(15, 40), paint);
-    
-    // Block effect
-    final effectPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(0, 0), 30, effectPaint);
-  }
-
-  void _drawJumpingStickman(Canvas canvas, Paint paint) {
-    // Head
-    canvas.drawCircle(Offset(0, -40), 10, paint);
-    
-    // Body
-    canvas.drawLine(Offset(0, -30), Offset(0, 20), paint);
-    
-    // Arms (jumping pose)
-    canvas.drawLine(Offset(0, -20), Offset(-20, -30), paint);
-    canvas.drawLine(Offset(0, -20), Offset(20, -30), paint);
-    
-    // Legs
-    canvas.drawLine(Offset(0, 20), Offset(-15, 30), paint);
-    canvas.drawLine(Offset(0, 20), Offset(15, 30), paint);
-  }
-
-  void _drawCooldownIndicator(Canvas canvas) {
-    final cooldownPaint = Paint()
-      ..color = Colors.grey.withOpacity(0.5)
-      ..style = PaintingStyle.fill;
-    
-    final progress = specialAttackCooldown / specialAttackCooldownDuration;
-    final angle = 2 * math.pi * progress;
-    
-    canvas.drawArc(
-      Rect.fromCenter(center: Offset(0, -50), width: 20, height: 20),
-      -math.pi / 2,
-      angle,
-      true,
-      cooldownPaint,
-    );
   }
 }

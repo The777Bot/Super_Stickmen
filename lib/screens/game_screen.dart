@@ -3,29 +3,37 @@ import 'package:flutter/material.dart';
 import '../stickman_fight_game.dart';
 
 class GameScreen extends StatelessWidget {
-  final String selectedCharacter;
+  final String characterType;
+  final Function(bool) onGameOver;
   final VoidCallback onBackPressed;
 
   const GameScreen({
     super.key,
-    required this.selectedCharacter,
+    required this.characterType,
+    required this.onGameOver,
     required this.onBackPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Fighting as $selectedCharacter'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: onBackPressed,
-        ),
-      ),
       body: GameWidget(
         game: StickmanFightGame(
-          playerCharacter: selectedCharacter,
+          playerCharacter: characterType,
         ),
+        overlayBuilderMap: {
+          'pause_button': (context, game) {
+            return Positioned(
+              top: 20,
+              left: 20,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: onBackPressed,
+              ),
+            );
+          },
+        },
+        initialActiveOverlays: const ['pause_button'],
       ),
     );
   }

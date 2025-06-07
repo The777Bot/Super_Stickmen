@@ -10,6 +10,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
   late Stickman player;
   late Stickman computer;
   final String playerCharacter;
+  final Function(bool)? onGameOver;
   
   // AI properties
   double aiDecisionTimer = 0.0;
@@ -35,7 +36,10 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
   late GameWorld gameWorld;
   late GameHud gameHud;
 
-  StickmanFightGame({required this.playerCharacter});
+  StickmanFightGame({
+    required this.playerCharacter,
+    this.onGameOver,
+  });
 
   @override
   Future<void> onLoad() async {
@@ -94,10 +98,12 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
       isGameOver = true;
       winner = 'Computer';
       computerScore++;
+      onGameOver?.call(false);
     } else if (computer.isDead()) {
       isGameOver = true;
       winner = 'Player';
       playerScore++;
+      onGameOver?.call(false);
     }
     
     // Keep characters in bounds
@@ -130,7 +136,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
 
   void _keepInBounds(Stickman stickman) {
     // Keep within screen bounds with some padding
-    final padding = 20.0;
+    const padding = 20.0;
     if (stickman.position.x < padding) {
       stickman.position.x = padding;
     } else if (stickman.position.x > size.x - stickman.size.x - padding) {
@@ -255,10 +261,10 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.keyA ||
           event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        player.move(-1);
+        player.move(-2); // Increased speed
       } else if (event.logicalKey == LogicalKeyboardKey.keyD ||
                  event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        player.move(1);
+        player.move(2); // Increased speed
       } else if (event.logicalKey == LogicalKeyboardKey.space) {
         player.jump();
       } else if (event.logicalKey == LogicalKeyboardKey.keyJ) {
@@ -320,7 +326,7 @@ class HitEffect extends PositionComponent {
     
     _paint.color = Colors.yellow.withOpacity(opacity);
     canvas.drawCircle(
-      Offset(0, 0),
+      const Offset(0, 0),
       radius,
       _paint,
     );
@@ -511,6 +517,13 @@ class GameHud extends PositionComponent {
           color: Colors.white,
           fontSize: 48,
           fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(
+              color: Colors.black,
+              blurRadius: 10,
+              offset: Offset(2, 2),
+            ),
+          ],
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -520,7 +533,111 @@ class GameHud extends PositionComponent {
       canvas,
       Offset(
         (game.size.x - textPainter.width) / 2,
-        (game.size.y - textPainter.height) / 2,
+        (game.size.y - textPainter.height) / 2 - 100,
+      ),
+    );
+
+    // Draw score
+    final scoreText = TextPainter(
+      text: TextSpan(
+        text: 'Score: ${game.playerScore} - ${game.computerScore}',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(
+              color: Colors.black,
+              blurRadius: 10,
+              offset: Offset(2, 2),
+            ),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    scoreText.paint(
+      canvas,
+      Offset(
+        (game.size.x - scoreText.width) / 2,
+        (game.size.y - scoreText.height) / 2,
+      ),
+    );
+
+    // Draw buttons
+    _drawGameOverButton(
+      canvas,
+      game,
+      'Play Again',
+      (game.size.y - 100) / 2 + 50,
+    );
+
+    _drawGameOverButton(
+      canvas,
+      game,
+      'Choose Character',
+      (game.size.y - 100) / 2 + 120,
+    );
+  }
+
+  void _drawGameOverButton(
+    Canvas canvas,
+    StickmanFightGame game,
+    String text,
+    double y,
+  ) {
+    final buttonWidth = 200.0;
+    final buttonHeight = 50.0;
+    final x = (game.size.x - buttonWidth) / 2;
+
+    // Draw button background
+    final buttonPaint = Paint()
+      ..color = Colors.white.withOpacity(0.2)
+      ..style = PaintingStyle.fill;
+    
+    final buttonRect = Rect.fromLTWH(x, y, buttonWidth, buttonHeight);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(buttonRect, const Radius.circular(10)),
+      buttonPaint,
+    );
+
+    // Draw button border
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(buttonRect, const Radius.circular(10)),
+      borderPaint,
+    );
+
+    // Draw button text
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(
+              color: Colors.black,
+              blurRadius: 5,
+              offset: Offset(1, 1),
+            ),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainter.paint(
+      canvas,
+      Offset(
+        x + (buttonWidth - textPainter.width) / 2,
+        y + (buttonHeight - textPainter.height) / 2,
       ),
     );
   }
