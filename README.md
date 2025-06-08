@@ -31,6 +31,6 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
-#ScreenShots
+# ScreenShots
 1.
-![screenshot Stickman](assets/images/Screenshot_(18).png)
+![screenshot Stickman](assets/images/ssm1.png)
