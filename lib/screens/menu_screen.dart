@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 class MenuScreen extends StatefulWidget {
   final VoidCallback onPlayPressed;
@@ -19,6 +20,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   late AnimationController _animationController;
   late Animation<double> _leftWarriorAnimation;
   late Animation<double> _rightWarriorAnimation;
+  final List<Particle> _particles = List.generate(50, (index) => Particle());
 
   @override
   void initState() {
@@ -53,15 +55,37 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.blue, Colors.purple],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade900,
+              Colors.purple.shade900,
+            ],
           ),
         ),
         child: Stack(
           children: [
+            // Animated background particles
+            ..._particles.map((particle) => AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                particle.update();
+                return Positioned(
+                  left: particle.x,
+                  top: particle.y,
+                  child: Container(
+                    width: particle.size,
+                    height: particle.size,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(particle.opacity),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                );
+              },
+            )),
             // Left Warrior
             Positioned(
               left: -50,
@@ -103,18 +127,30 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Super Stickmen',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black,
-                          blurRadius: 10,
-                        ),
-                      ],
+                  // Game Logo
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 2,
+                      ),
+                    ),
+                    child: const Text(
+                      'Super Stickmen',
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black,
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 50),
@@ -146,6 +182,23 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     isHovered: _isExitHovered,
                     onHoverChanged: (value) => setState(() => _isExitHovered = value),
                   ),
+                  const SizedBox(height: 50),
+                  // Version and Credits
+                  Text(
+                    'v1.0.0',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '© 2024 Super Stickmen',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -176,7 +229,6 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       ),
       child: Stack(
         children: [
-          // Try to load the image, fallback to icon if not found
           Center(
             child: Image.asset(
               imagePath,
@@ -192,7 +244,6 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
               },
             ),
           ),
-          // Add a glow effect
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -225,6 +276,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
       onExit: (_) => onHoverChanged(false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        transform: Matrix4.identity()
+          ..scale(isHovered ? 1.05 : 1.0),
         child: ElevatedButton(
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
@@ -249,15 +302,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
               Text(
                 text,
                 style: TextStyle(
-                  color: isHovered ? Colors.blue.shade700 : Colors.blue,
-                  shadows: isHovered
-                      ? [
-                          Shadow(
-                            color: Colors.blue.withOpacity(0.5),
-                            blurRadius: 10,
-                          )
-                        ]
-                      : null,
+                  fontSize: 24,
+                  fontWeight: isHovered ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ],
@@ -265,5 +311,24 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
         ),
       ),
     );
+  }
+}
+
+class Particle {
+  double x = math.Random().nextDouble() * 1000;
+  double y = math.Random().nextDouble() * 1000;
+  double size = math.Random().nextDouble() * 4 + 1;
+  double speed = math.Random().nextDouble() * 2 + 0.5;
+  double opacity = math.Random().nextDouble() * 0.5 + 0.1;
+  double direction = math.Random().nextDouble() * 360;
+
+  void update() {
+    x += math.cos(direction) * speed;
+    y += math.sin(direction) * speed;
+    
+    if (x < 0) x = 1000;
+    if (x > 1000) x = 0;
+    if (y < 0) y = 1000;
+    if (y > 1000) y = 0;
   }
 } 
