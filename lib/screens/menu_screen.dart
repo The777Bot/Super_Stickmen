@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
+import '../theme_provider.dart';
 
 class MenuScreen extends StatefulWidget {
   final VoidCallback onPlayPressed;
@@ -17,6 +19,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   bool _isPlayHovered = false;
   bool _isSettingsHovered = false;
   bool _isExitHovered = false;
+  bool _isThemeHovered = false;
   late AnimationController _animationController;
   late Animation<double> _leftWarriorAnimation;
   late Animation<double> _rightWarriorAnimation;
@@ -53,16 +56,24 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade900,
-              Colors.purple.shade900,
-            ],
+            colors: isDarkMode
+                ? [
+                    Colors.blue.shade900,
+                    Colors.purple.shade900,
+                  ]
+                : [
+                    Colors.blue.shade200,
+                    Colors.purple.shade200,
+                  ],
           ),
         ),
         child: Stack(
@@ -79,13 +90,36 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     width: particle.size,
                     height: particle.size,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(particle.opacity),
+                      color: (isDarkMode ? Colors.white : Colors.black).withOpacity(particle.opacity),
                       shape: BoxShape.circle,
                     ),
                   ),
                 );
               },
             )),
+            // Theme toggle button
+            Positioned(
+              top: 20,
+              right: 20,
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _isThemeHovered = true),
+                onExit: (_) => setState(() => _isThemeHovered = false),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  transform: Matrix4.identity()
+                    ..scale(_isThemeHovered ? 1.1 : 1.0),
+                  child: IconButton(
+                    icon: Icon(
+                      isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                    onPressed: () => themeProvider.toggleTheme(),
+                    tooltip: isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                  ),
+                ),
+              ),
+            ),
             // Left Warrior
             Positioned(
               left: -50,
@@ -97,7 +131,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     offset: Offset(0, _leftWarriorAnimation.value),
                     child: _buildWarriorImage(
                       'assets/images/ninja_warrior.png',
-                      Colors.black,
+                      isDarkMode ? Colors.black : Colors.grey.shade800,
                       Icons.person,
                     ),
                   );
@@ -115,7 +149,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     offset: Offset(0, _rightWarriorAnimation.value),
                     child: _buildWarriorImage(
                       'assets/images/mage_warrior.png',
-                      Colors.blue,
+                      isDarkMode ? Colors.blue : Colors.blue.shade300,
                       Icons.auto_awesome,
                     ),
                   );
@@ -131,22 +165,22 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
+                        color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.2),
                         width: 2,
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Super Stickmen',
                       style: TextStyle(
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: isDarkMode ? Colors.white : Colors.black,
                         shadows: [
                           Shadow(
-                            color: Colors.black,
+                            color: (isDarkMode ? Colors.black : Colors.white).withOpacity(0.5),
                             blurRadius: 10,
                           ),
                         ],
@@ -160,6 +194,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     icon: Icons.play_arrow,
                     isHovered: _isPlayHovered,
                     onHoverChanged: (value) => setState(() => _isPlayHovered = value),
+                    isDarkMode: isDarkMode,
                   ),
                   const SizedBox(height: 20),
                   _buildMenuButton(
@@ -170,6 +205,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     icon: Icons.settings,
                     isHovered: _isSettingsHovered,
                     onHoverChanged: (value) => setState(() => _isSettingsHovered = value),
+                    isDarkMode: isDarkMode,
                   ),
                   const SizedBox(height: 20),
                   _buildMenuButton(
@@ -181,13 +217,14 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     icon: Icons.exit_to_app,
                     isHovered: _isExitHovered,
                     onHoverChanged: (value) => setState(() => _isExitHovered = value),
+                    isDarkMode: isDarkMode,
                   ),
                   const SizedBox(height: 50),
                   // Version and Credits
                   Text(
                     'v1.0.0',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.5),
                       fontSize: 14,
                     ),
                   ),
@@ -195,7 +232,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                   Text(
                     '© 2024 Super Stickmen',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.5),
                       fontSize: 14,
                     ),
                   ),
@@ -209,6 +246,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildWarriorImage(String imagePath, Color color, IconData fallbackIcon) {
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
     return Container(
       width: 300,
       height: 400,
@@ -269,6 +307,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
     required IconData icon,
     required bool isHovered,
     required ValueChanged<bool> onHoverChanged,
+    required bool isDarkMode,
   }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -283,8 +322,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
             textStyle: const TextStyle(fontSize: 24),
-            backgroundColor: Colors.white.withOpacity(isHovered ? 0.9 : 0.8),
-            foregroundColor: isHovered ? Colors.blue.shade700 : Colors.blue,
+            backgroundColor: (isDarkMode ? Colors.white : Colors.black).withOpacity(isHovered ? 0.9 : 0.8),
+            foregroundColor: isDarkMode ? Colors.black : Colors.white,
             elevation: isHovered ? 8 : 5,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -296,7 +335,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
               Icon(
                 icon,
                 size: 28,
-                color: isHovered ? Colors.blue.shade700 : Colors.blue,
+                color: isDarkMode ? Colors.black : Colors.white,
               ),
               const SizedBox(width: 10),
               Text(
@@ -304,6 +343,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: isHovered ? FontWeight.bold : FontWeight.normal,
+                  color: isDarkMode ? Colors.black : Colors.white,
                 ),
               ),
             ],

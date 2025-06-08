@@ -1,19 +1,30 @@
-import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import 'screens/menu_screen.dart';
-import 'screens/character_selection_screen.dart';
-import 'screens/game_screen.dart';
+import 'package:provider/provider.dart';
 import 'game_state.dart';
+import 'theme_provider.dart';
 
 void main() {
   runApp(
-    MaterialApp(
-      title: 'Super Stickmen',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: const GameStateManager(),
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const SuperStickmenApp(),
     ),
   );
+}
+
+class SuperStickmenApp extends StatelessWidget {
+  const SuperStickmenApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'Super Stickmen',
+          theme: themeProvider.theme,
+          home: const GameStateManager(),
+        );
+      },
+    );
+  }
 }
