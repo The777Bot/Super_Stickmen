@@ -1,11 +1,12 @@
-import 'dart:math';
 import 'package:flame/components.dart';
-import 'package:flame/geometry.dart';
 import 'package:flutter/material.dart';
-//import 'package:flutter/services.dart';
+import 'package:flame/game.dart';
+import 'package:flame/input.dart';
+import 'package:flutter/services.dart';
 import 'dart:math' as math;
+import 'stickman_fight_game.dart';
 
-class Stickman extends PositionComponent {
+class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
   final String characterType;
   bool facingLeft;
   late double currentHealth;
@@ -44,6 +45,15 @@ class Stickman extends PositionComponent {
   late String specialMoveName;
   late double specialMoveDamage;
   
+  // Add combo-related properties
+  int comboCount = 0;
+  double comboResetTimer = 0.0;
+  static const double comboResetDuration = 2.0; // Time window to maintain combo
+  double maxSpecialAttackCooldown = 5.0; // Default value, can be overridden in _initializeCharacterProperties
+  
+  // Add ground position property
+  late double _groundY;
+  
   Stickman({
     required Vector2 position,
     this.facingLeft = false,
@@ -55,6 +65,15 @@ class Stickman extends PositionComponent {
     currentHealth = maxHealth;
   }
 
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    // Calculate ground position based on game size and stickman size
+    _groundY = gameRef.size.y - 80 - size.y; // 80 is the new ground height
+    // Ensure stickman starts on the ground
+    position.y = _groundY;
+  }
+
   void _initializeCharacterProperties() {
     switch (characterType) {
       case 'Ninja':
@@ -62,29 +81,33 @@ class Stickman extends PositionComponent {
         specialMoveName = 'Shadow Strike';
         specialMoveDamage = 25.0;
         moveSpeed = 250.0; // Faster movement
+        maxSpecialAttackCooldown = 4.0; // Shorter cooldown
         break;
       case 'Warrior':
         characterColor = Colors.red;
         specialMoveName = 'Berserker Rage';
         specialMoveDamage = 30.0;
         maxHealth = 120.0; // More health
+        maxSpecialAttackCooldown = 6.0; // Longer cooldown
         break;
       case 'Mage':
         characterColor = Colors.blue;
         specialMoveName = 'Arcane Blast';
         specialMoveDamage = 35.0;
-        specialAttackCooldownDuration = 4.0; // Shorter cooldown
+        maxSpecialAttackCooldown = 4.0; // Shorter cooldown
         break;
       case 'Archer':
         characterColor = Colors.green;
         specialMoveName = 'Precision Shot';
         specialMoveDamage = 40.0;
         moveSpeed = 220.0; // Balanced movement
+        maxSpecialAttackCooldown = 5.0; // Standard cooldown
         break;
       default:
         characterColor = Colors.grey;
         specialMoveName = 'Special Attack';
         specialMoveDamage = 20.0;
+        maxSpecialAttackCooldown = 5.0; // Default cooldown
     }
   }
 
@@ -117,6 +140,10 @@ class Stickman extends PositionComponent {
     
     isAttacking = true;
     attackTimer = 0.0;
+    
+    // Update combo
+    comboResetTimer = comboResetDuration;
+    comboCount++;
   }
 
   void specialAttack() {
@@ -138,11 +165,21 @@ class Stickman extends PositionComponent {
     isBlocking = false;
   }
 
+  void resetCombo() {
+    comboCount = 0;
+    comboResetTimer = 0.0;
+  }
+
+  void resetSpecialAttackCooldown() {
+    specialAttackCooldown = 0.0;
+  }
+
   void takeDamage(double amount) {
     if (isBlocking) {
       amount *= 0.2; // Block reduces damage by 80%
     }
     currentHealth = math.max(0, currentHealth - amount);
+    resetCombo(); // Reset combo when taking damage
   }
 
   bool isDead() => currentHealth <= 0;
@@ -150,6 +187,14 @@ class Stickman extends PositionComponent {
   @override
   void update(double dt) {
     super.update(dt);
+    
+    // Update combo timer
+    if (comboResetTimer > 0) {
+      comboResetTimer -= dt;
+      if (comboResetTimer <= 0) {
+        resetCombo();
+      }
+    }
     
     // Update cooldowns
     if (specialAttackCooldown > 0) {
@@ -202,8 +247,8 @@ class Stickman extends PositionComponent {
       position.y += verticalVelocity * dt;
       
       // Check for ground collision
-      if (position.y >= 500) { // Ground level
-        position.y = 500;
+      if (position.y >= _groundY) {
+        position.y = _groundY;
         verticalVelocity = 0;
         isGrounded = true;
       }
@@ -226,12 +271,12 @@ class Stickman extends PositionComponent {
       ..color = characterColor.withOpacity(0.3)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(
-      Offset(0, -30),
+      const Offset(0, -30),
       18,
       glowPaint,
     );
     canvas.drawCircle(
-      Offset(0, -30),
+      const Offset(0, -30),
       15,
       headPaint,
     );
@@ -245,7 +290,7 @@ class Stickman extends PositionComponent {
 
     // Draw arms with improved angles
     final armAngle = isAttacking ? 45.0 : 0.0;
-    final armLength = 25.0;
+    const armLength = 25.0;
     
     // Left arm
     canvas.drawLine(
@@ -268,7 +313,7 @@ class Stickman extends PositionComponent {
     );
 
     // Draw legs with walking animation
-    final legLength = 30.0;
+    const legLength = 30.0;
     double leftLegAngle = 0.0;
     double rightLegAngle = 0.0;
 
