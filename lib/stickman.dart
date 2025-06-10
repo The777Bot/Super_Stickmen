@@ -69,7 +69,7 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
   Future<void> onLoad() async {
     await super.onLoad();
     // Calculate ground position based on game size and stickman size
-    _groundY = gameRef.size.y - 80 - size.y; // 80 is the new ground height
+    _groundY = gameRef.size.y - 40 - size.y; // 120 is the new ground height
     // Ensure stickman starts on the ground
     position.y = _groundY;
   }

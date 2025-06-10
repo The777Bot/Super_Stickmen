@@ -464,7 +464,7 @@ class GameWorld extends PositionComponent {
     // Draw ground (raised)
     final groundPaint = Paint()
       ..color = const Color(0xFF8B4513); // Brown color for ground
-    final groundHeight = 80.0; // Raised ground height
+    final groundHeight = 120.0; // Raised ground height
     canvas.drawRect(
       Rect.fromLTWH(0, game.size.y - groundHeight, game.size.x, groundHeight),
       groundPaint,
