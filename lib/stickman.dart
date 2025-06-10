@@ -42,6 +42,9 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
   
   // Character-specific properties
   late Color characterColor;
+  late Color _headColor;
+  late Color _bodyColor;
+  late Color _limbColor;
   late String specialMoveName;
   late double specialMoveDamage;
   
@@ -60,7 +63,7 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
     required this.characterType,
   }) {
     this.position = position;
-    size = Vector2(50, 100);
+    size = Vector2(70, 140);
     _initializeCharacterProperties();
     currentHealth = maxHealth;
   }
@@ -78,6 +81,9 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
     switch (characterType) {
       case 'Ninja':
         characterColor = Colors.black;
+        _headColor = Colors.grey.shade900;
+        _bodyColor = Colors.black;
+        _limbColor = Colors.teal.shade300;
         specialMoveName = 'Shadow Strike';
         specialMoveDamage = 25.0;
         moveSpeed = 250.0; // Faster movement
@@ -85,6 +91,9 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
         break;
       case 'Warrior':
         characterColor = Colors.red;
+        _headColor = Colors.brown.shade800;
+        _bodyColor = Colors.red.shade700;
+        _limbColor = Colors.yellow.shade700;
         specialMoveName = 'Berserker Rage';
         specialMoveDamage = 30.0;
         maxHealth = 120.0; // More health
@@ -92,12 +101,18 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
         break;
       case 'Mage':
         characterColor = Colors.blue;
+        _headColor = Colors.deepPurple.shade700;
+        _bodyColor = Colors.blue.shade700;
+        _limbColor = Colors.lightBlue.shade300;
         specialMoveName = 'Arcane Blast';
         specialMoveDamage = 35.0;
         maxSpecialAttackCooldown = 4.0; // Shorter cooldown
         break;
       case 'Archer':
         characterColor = Colors.green;
+        _headColor = Colors.grey.shade700;
+        _bodyColor = Colors.green.shade700;
+        _limbColor = Colors.brown.shade300;
         specialMoveName = 'Precision Shot';
         specialMoveDamage = 40.0;
         moveSpeed = 220.0; // Balanced movement
@@ -105,6 +120,9 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
         break;
       default:
         characterColor = Colors.grey;
+        _headColor = Colors.grey.shade700;
+        _bodyColor = Colors.grey.shade500;
+        _limbColor = Colors.grey.shade300;
         specialMoveName = 'Special Attack';
         specialMoveDamage = 20.0;
         maxSpecialAttackCooldown = 5.0; // Default cooldown
@@ -120,6 +138,7 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
     
     position.x += direction * moveSpeed * 0.016;
     isWalking = direction != 0;
+    print('Stickman moving. isWalking: $isWalking, direction: $direction'); // Debug print
     
     if (direction != 0) {
       facingLeft = direction < 0;
@@ -151,7 +170,8 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
     
     isSpecialAttacking = true;
     specialAttackTimer = 0.0;
-    specialAttackCooldown = specialAttackCooldownDuration;
+    specialAttackCooldown = maxSpecialAttackCooldown;
+    print('Special Attack Triggered');
   }
 
   void block() {
@@ -159,6 +179,7 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
     
     isBlocking = true;
     blockTimer = 0.0;
+    print('Block Triggered');
   }
 
   void stopBlocking() {
@@ -237,6 +258,7 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
       if (walkTimer >= walkCycleDuration) {
         walkTimer = 0.0;
       }
+      print('Walking: walkTimer=$walkTimer, cycleProgress=${walkTimer / walkCycleDuration}'); // Debug print
     } else {
       walkTimer = 0.0;
     }
@@ -257,239 +279,117 @@ class Stickman extends PositionComponent with HasGameRef<StickmanFightGame> {
 
   @override
   void render(Canvas canvas) {
-    final paint = Paint()
-      ..color = characterColor
+    // Paint for body and limbs (uses _limbColor for strokes)
+    final limbPaint = Paint()
+      ..color = _limbColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.0;
+      ..strokeWidth = 8.0;
 
-    final headPaint = Paint()
-      ..color = characterColor
+    // Paint for head fill
+    final headFillPaint = Paint()
+      ..color = _headColor
       ..style = PaintingStyle.fill;
+
+    // Paint for head glow effect
+    final headGlowPaint = Paint()
+      ..color = _headColor.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+
+    // Paint for body fill
+    final bodyPaint = Paint()
+      ..color = _bodyColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8.0;
 
     // Draw head with a slight glow effect
-    final glowPaint = Paint()
-      ..color = characterColor.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
     canvas.drawCircle(
-      const Offset(0, -30),
-      18,
-      glowPaint,
+      const Offset(0, -40),
+      22,
+      headGlowPaint,
     );
     canvas.drawCircle(
-      const Offset(0, -30),
-      15,
-      headPaint,
+      const Offset(0, -40),
+      20,
+      headFillPaint,
     );
 
     // Draw body
     canvas.drawLine(
-      const Offset(0, -15),
-      const Offset(0, 20),
-      paint,
+      const Offset(0, -20),
+      const Offset(0, 30),
+      bodyPaint, // Use bodyPaint for body
     );
 
     // Draw arms with improved angles
     final armAngle = isAttacking ? 45.0 : 0.0;
-    const armLength = 25.0;
+    const armLength = 35.0;
     
     // Left arm
     canvas.drawLine(
       const Offset(0, 0),
       Offset(
-        -armLength * math.cos(math.pi / 4 + armAngle * math.pi / 180),
-        armLength * math.sin(math.pi / 4 + armAngle * math.pi / 180),
+        facingLeft ? -armLength * math.cos(armAngle * math.pi / 180) : armLength * math.cos(armAngle * math.pi / 180),
+        armLength * math.sin(armAngle * math.pi / 180),
       ),
-      paint,
+      limbPaint, // Use limbPaint for arms
     );
-
+    
     // Right arm
     canvas.drawLine(
       const Offset(0, 0),
       Offset(
-        armLength * math.cos(math.pi / 4 - armAngle * math.pi / 180),
-        armLength * math.sin(math.pi / 4 - armAngle * math.pi / 180),
+        facingLeft ? armLength * math.cos(armAngle * math.pi / 180) : -armLength * math.cos(armAngle * math.pi / 180),
+        armLength * math.sin(armAngle * math.pi / 180),
       ),
-      paint,
+      limbPaint, // Use limbPaint for arms
     );
 
-    // Draw legs with walking animation
-    const legLength = 30.0;
-    double leftLegAngle = 0.0;
-    double rightLegAngle = 0.0;
+    // Draw legs
+    const legLength = 45.0;
+    double leftLegSwingAngle = 0.0; // In radians, for swinging forward/backward
+    double rightLegSwingAngle = 0.0; // In radians
 
     if (isWalking) {
-      // Calculate leg angles based on walk cycle
       final cycleProgress = walkTimer / walkCycleDuration;
-      final angleOffset = math.sin(cycleProgress * math.pi * 2) * 30.0; // 30 degrees max swing
-      leftLegAngle = angleOffset;
-      rightLegAngle = -angleOffset;
+      // Convert degrees to radians directly for math.sin/cos
+      final swingAngle = math.sin(cycleProgress * math.pi * 2) * (45.0 * math.pi / 180.0); // Max swing 45 degrees converted to radians
+      leftLegSwingAngle = swingAngle;
+      rightLegSwingAngle = -swingAngle;
     } else if (isJumping) {
-      leftLegAngle = -30.0;
-      rightLegAngle = -30.0;
+      leftLegSwingAngle = -45.0 * math.pi / 180.0; // Legs tucked when jumping, convert to radians
+      rightLegSwingAngle = -45.0 * math.pi / 180.0;
     }
 
     // Left leg
-    canvas.drawLine(
-      const Offset(0, 20),
-      Offset(
-        -legLength * math.cos(math.pi / 4 + leftLegAngle * math.pi / 180),
-        20 + legLength * math.sin(math.pi / 4 + leftLegAngle * math.pi / 180),
-      ),
-      paint,
+    final leftLegEndPoint = Offset(
+      (facingLeft ? -1 : 1) * legLength * math.sin(leftLegSwingAngle), // X-component: horizontal swing
+      30 + legLength * math.cos(leftLegSwingAngle), // Y-component: vertical extension
     );
+    canvas.drawLine(
+      const Offset(0, 30), // Start from hip
+      leftLegEndPoint,
+      limbPaint, // Use limbPaint for legs
+    );
+    print('Left Leg EndPoint: $leftLegEndPoint'); // Debug print
 
     // Right leg
-    canvas.drawLine(
-      const Offset(0, 20),
-      Offset(
-        legLength * math.cos(math.pi / 4 - rightLegAngle * math.pi / 180),
-        20 + legLength * math.sin(math.pi / 4 - rightLegAngle * math.pi / 180),
-      ),
-      paint,
+    final rightLegEndPoint = Offset(
+      (facingLeft ? -1 : 1) * legLength * math.sin(rightLegSwingAngle), // X-component: horizontal swing
+      30 + legLength * math.cos(rightLegSwingAngle), // Y-component: vertical extension
     );
+    canvas.drawLine(
+      const Offset(0, 30), // Start from hip
+      rightLegEndPoint,
+      limbPaint, // Use limbPaint for legs
+    );
+    print('Right Leg EndPoint: $rightLegEndPoint'); // Debug print
 
     // Draw special effects based on character type
-    _drawSpecialEffects(canvas, paint);
+    _drawSpecialEffects(canvas, limbPaint);
   }
 
-  void _drawSpecialEffects(Canvas canvas, Paint basePaint) {
-    final effectPaint = Paint()
-      ..color = characterColor.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.0; // Increased from 3.0 to 4.0 for thicker effect lines
-
-    switch (characterType) {
-      case 'Ninja':
-        // Draw ninja mask with thicker lines
-        canvas.drawLine(
-          const Offset(-12, -25),
-          const Offset(12, -25),
-          basePaint,
-        );
-        // Draw sword with glow effect
-        if (isAttacking) {
-          final swordGlowPaint = Paint()
-            ..color = characterColor.withOpacity(0.3)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 8.0;
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(45, -25),
-            swordGlowPaint,
-          );
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(40, -20),
-            basePaint,
-          );
-        }
-        break;
-      case 'Warrior':
-        // Draw shield with improved effect
-        if (isBlocking) {
-          final shieldGlowPaint = Paint()
-            ..color = characterColor.withOpacity(0.3)
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(
-            const Offset(-20, 0),
-            18,
-            shieldGlowPaint,
-          );
-          canvas.drawCircle(
-            const Offset(-20, 0),
-            15,
-            effectPaint,
-          );
-        }
-        // Draw sword with glow effect
-        if (isAttacking) {
-          final swordGlowPaint = Paint()
-            ..color = characterColor.withOpacity(0.3)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 8.0;
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(45, -25),
-            swordGlowPaint,
-          );
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(40, -20),
-            basePaint,
-          );
-        }
-        break;
-      case 'Mage':
-        // Draw magic staff with improved effects
-        if (isAttacking) {
-          final staffGlowPaint = Paint()
-            ..color = characterColor.withOpacity(0.3)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 8.0;
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(45, -25),
-            staffGlowPaint,
-          );
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(40, -20),
-            basePaint,
-          );
-          // Draw enhanced magic effect
-          final magicGlowPaint = Paint()
-            ..color = characterColor.withOpacity(0.3)
-            ..style = PaintingStyle.fill;
-          canvas.drawCircle(
-            const Offset(40, -20),
-            15,
-            magicGlowPaint,
-          );
-          canvas.drawCircle(
-            const Offset(40, -20),
-            10,
-            effectPaint,
-          );
-        }
-        break;
-      case 'Archer':
-        // Draw bow with improved effects
-        if (isAttacking) {
-          final bowGlowPaint = Paint()
-            ..color = characterColor.withOpacity(0.3)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 6.0;
-          canvas.drawArc(
-            const Rect.fromLTWH(20, -25, 25, 25),
-            0,
-            math.pi,
-            false,
-            bowGlowPaint,
-          );
-          canvas.drawArc(
-            const Rect.fromLTWH(20, -20, 20, 20),
-            0,
-            math.pi,
-            false,
-            basePaint,
-          );
-          // Draw arrow with glow
-          final arrowGlowPaint = Paint()
-            ..color = characterColor.withOpacity(0.3)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 8.0;
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(45, -25),
-            arrowGlowPaint,
-          );
-          canvas.drawLine(
-            const Offset(30, -10),
-            const Offset(40, -20),
-            basePaint,
-          );
-        }
-        break;
-    }
+  void _drawSpecialEffects(Canvas canvas, Paint paint) {
+    // This method can be expanded to draw character-specific effects
+    // For now, it's just a placeholder.
   }
 }

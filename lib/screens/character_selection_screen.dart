@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../theme_provider.dart';
 
@@ -167,13 +166,13 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> wit
                   // Character grid
                   Expanded(
                     flex: 2,
-                    child: Padding(
+              child: Padding(
                       padding: const EdgeInsets.all(20.0),
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 20,
-                        crossAxisSpacing: 20,
-                        childAspectRatio: 0.8,
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 20,
+                  childAspectRatio: 0.8,
                         children: _characterDetails.keys.map((character) => _buildCharacterCard(character, isDarkMode)).toList(),
                       ),
                     ),
@@ -258,7 +257,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> wit
                               (stat) => Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: Row(
-                                  children: [
+                  children: [
                                     Text(
                                       '${stat.key}:',
                                       style: TextStyle(
@@ -346,7 +345,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> wit
                   width: isSelected ? 3 : isHovered ? 2 : 1,
                 ),
                 boxShadow: [
-                  BoxShadow(
+                        BoxShadow(
                     color: details['color'].withOpacity(isSelected ? 0.5 : isHovered ? 0.3 : 0.1),
                     blurRadius: isSelected ? 20 : isHovered ? 15 : 10,
                     spreadRadius: isSelected ? 2 : isHovered ? 1 : 0,

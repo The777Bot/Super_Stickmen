@@ -15,9 +15,6 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
   // AI properties
   double aiDecisionTimer = 0.0;
   double aiDecisionInterval = 0.3; // Make decisions more frequently
-  bool isPlayerAttacking = false;
-  bool isPlayerBlocking = false;
-  bool isPlayerSpecialAttacking = false;
   
   // Game state
   bool isGameOver = false;
@@ -278,6 +275,8 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
+    print('Key event: $event'); // Global debug print
+
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         isPaused = !isPaused;
@@ -288,6 +287,7 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
     if (isPaused || isGameOver || isRoundOver) return KeyEventResult.handled;
 
     if (event is KeyDownEvent) {
+      print('Key Down: ${event.logicalKey}'); // KeyDownEvent specific debug print
       if (event.logicalKey == LogicalKeyboardKey.keyA ||
           event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         player.move(-2); // Increased speed
@@ -298,13 +298,16 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
         player.jump();
       } else if (event.logicalKey == LogicalKeyboardKey.keyJ) {
         player.attack();
-        isPlayerAttacking = true;
       } else if (event.logicalKey == LogicalKeyboardKey.keyK) {
-        player.block();
-        isPlayerBlocking = true;
+        if (!player.isBlocking) { // Only trigger effect if not already blocking
+          player.block();
+          _createHitEffect(player.position, true, false); // Direct visual feedback for block
+        }
       } else if (event.logicalKey == LogicalKeyboardKey.keyL) {
-        player.specialAttack();
-        isPlayerSpecialAttacking = true;
+        if (player.specialAttackCooldown <= 0) { // Only trigger effect if special attack is off cooldown
+          player.specialAttack();
+          _createHitEffect(player.position, false, true); // Direct visual feedback for special attack
+        }
       }
     }
 
@@ -314,13 +317,8 @@ class StickmanFightGame extends FlameGame with KeyboardEvents, HasCollisionDetec
           event.logicalKey == LogicalKeyboardKey.arrowLeft ||
           event.logicalKey == LogicalKeyboardKey.arrowRight) {
         player.move(0);
-      } else if (event.logicalKey == LogicalKeyboardKey.keyJ) {
-        isPlayerAttacking = false;
       } else if (event.logicalKey == LogicalKeyboardKey.keyK) {
         player.stopBlocking();
-        isPlayerBlocking = false;
-      } else if (event.logicalKey == LogicalKeyboardKey.keyL) {
-        isPlayerSpecialAttacking = false;
       }
     }
 
@@ -380,6 +378,7 @@ class HitEffect extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
+    print('HitEffect render called: isBlock=$isBlock, isSpecial=$isSpecial'); // Debug print
     final progress = _timer / duration;
     final radius = 20.0 * (1 - progress);
     final opacity = 1.0 - progress;
@@ -464,7 +463,7 @@ class GameWorld extends PositionComponent {
     // Draw ground (raised)
     final groundPaint = Paint()
       ..color = const Color(0xFF8B4513); // Brown color for ground
-    final groundHeight = 120.0; // Raised ground height
+    final groundHeight = 100.0; // Raised ground height
     canvas.drawRect(
       Rect.fromLTWH(0, game.size.y - groundHeight, game.size.x, groundHeight),
       groundPaint,
